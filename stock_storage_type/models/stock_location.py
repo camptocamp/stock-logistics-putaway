@@ -525,8 +525,7 @@ class StockLocation(models.Model):
                 ),
             ]
         package_weight_kg = (
-            quants.package_id.pack_weight_in_kg
-            or quants.package_id.estimated_pack_weight_kg
+            quants.package_id.pack_weight_in_kg or quants.package_id.weight
         )
         if package_weight_kg:
             pertinent_category_domain += [
