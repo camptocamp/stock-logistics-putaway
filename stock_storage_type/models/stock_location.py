@@ -524,15 +524,15 @@ class StockLocation(models.Model):
                     quants.package_id.height_in_m,
                 ),
             ]
-        package_weight_kg = (
-            quants.package_id.pack_weight_in_kg
-            or quants.package_id.estimated_pack_weight_kg
+        package = quants.package_id
+        weight = (
+            package.sudo()._get_weight(self.env.context.get("picking_id")).get(package)
         )
-        if package_weight_kg:
+        if weight:
             pertinent_category_domain += [
                 "|",
                 ("max_weight_in_kg", "=", 0),
-                ("max_weight_in_kg", ">=", package_weight_kg),
+                ("max_weight_in_kg", ">=", weight),
             ]
         _logger.debug(
             "pertinent storage category domain: %s", pertinent_category_domain
