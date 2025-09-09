@@ -43,15 +43,18 @@ class StockMoveLine(models.Model):
         return self.filtered(lambda line: line._can_recompute_putaway())
 
     def _check_all_lines_with_same_dest_package(self):
-        for _package, move_line_list in groupby(
+        for package, move_line_list in groupby(
             self, lambda line: line.result_package_id
         ):
+            if not package:
+                continue
             move_lines = self.env["stock.move.line"].concat(*move_line_list)
-            other_package_lines = self.env["stock.move.line"].search(
+            other_package_lines = self.env["stock.move.line"].search_count(
                 [
-                    ("picking_id", "=", move_lines.mapped("picking_id").id),
+                    ("result_package_id", "=", package.id),
                     ("id", "not in", move_lines.ids),
-                ]
+                ],
+                limit=1,
             )
             if other_package_lines:
                 raise UserError(
