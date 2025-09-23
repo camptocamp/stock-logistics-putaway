@@ -20,7 +20,7 @@ class StockPicking(models.Model):
         Launches the putaways recomputation on operations
         """
         for picking in self:
-            picking.move_line_ids._recompute_putaways()
+            picking.move_line_ids.action_recompute_putaways()
 
     def _can_recompute_putaway(self):
         self.ensure_one()
