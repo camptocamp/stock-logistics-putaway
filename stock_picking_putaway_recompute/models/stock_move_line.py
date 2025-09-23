@@ -50,7 +50,7 @@ class StockMoveLine(models.Model):
         allowed to.
         """
         to_recompute_lines = self.filtered(
-            lambda line: line.picking_id._can_recompute_putaway()
+            lambda line: line.picking_id.picking_type_id.allow_to_recompute_putaways
         )
         # Reset location destinations to their move destination
         # First, protect the field from recomputations as
