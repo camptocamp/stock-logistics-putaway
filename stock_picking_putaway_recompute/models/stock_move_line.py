@@ -49,16 +49,17 @@ class StockMoveLine(models.Model):
         Launches the computation of putaways on operations that are
         allowed to.
         """
-        to_recompute_lines = self._filtered_for_putaway_recompute()
+        to_recompute_lines = self.filtered(
+            lambda line: line.picking_id._can_recompute_putaway()
+        )
         # Reset location destinations to their move destination
         # First, protect the field from recomputations as
         # value will be reaffected afterwards.
-        with to_recompute_lines.env.protecting(
-            ["location_dest_id"], to_recompute_lines
-        ):
+        with self.env.protecting(["location_dest_id"], to_recompute_lines):
             for line in to_recompute_lines:
                 line.location_dest_id = line.move_id.location_dest_id
         to_recompute_lines._apply_putaway_strategy()
 
     def action_recompute_putaways(self):
-        self._recompute_putaways()
+        to_recompute_lines = self._filtered_for_putaway_recompute()
+        to_recompute_lines._recompute_putaways()
