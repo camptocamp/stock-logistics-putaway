@@ -40,15 +40,51 @@ class StockQuant(models.Model):
             package_quants = quant.package_id.mapped("quant_ids")
             package_products = package_quants.mapped("product_id")
             package_lots = package_quants.mapped("lot_id")
-            other_quants_in_location = self.search(
+
+            other_quants_in_location = self.env['stock.quant']._read_group(
                 [
                     ("location_id", "=", location.id),
                     ("id", "not in", package_quants.ids),
                     ("quantity", ">", 0),
-                ]
+                ],
+                ['product_id', 'lot_id', 'package_id', 'owner_id'],
+                ['quantity:sum', 'reserved_quantity:sum', 'id:recordset'],
             )
-            products_in_location = other_quants_in_location.mapped("product_id")
-            lots_in_location = other_quants_in_location.mapped("lot_id")
+            products_in_location = self.env["product.product"]
+            lots_in_location = self.env["stock.lot"]
+            other_non_picked_quants_in_location = False
+            fully_reserved_quants = []
+            for product, lot, package, owner, quantity, reserved_quantity, quants in other_quants_in_location:
+                if reserved_quantity != quantity:
+                    products_in_location |= product
+                    lots_in_location |= lot
+                    other_non_picked_quants_in_location = True
+                    continue
+                fully_reserved_quants.append((product, lot, package, owner, quantity))
+            if fully_reserved_quants:
+                # check move lines
+                move_lines = self.env['stock.move.line']._read_group(
+                    [
+                        ('state', 'in', ['assigned', 'partially_available']),
+                        ('picked', '=', True),
+                        ('location_id', '=', location.id),
+                        ('location_dest_id', '!=', location.id),
+                        ('quantity_product_uom', '!=', 0),
+                    ],
+                    ['product_id', 'lot_id', 'package_id', 'owner_id'],
+                    ['quantity_product_uom:sum'],
+                )
+                picked_qty_by_group = {
+                    (product, lot, package, owner): reserved_quantity
+                    for product, lot, package, owner, reserved_quantity in move_lines
+                }
+                for product, lot, package, owner, quantity in fully_reserved_quants:
+                    picked_qty = picked_qty_by_group.get((product, lot, package, owner), 0)
+                    if quantity != picked_qty:
+                        products_in_location |= product
+                        lots_in_location |= lot
+                        other_non_picked_quants_in_location = True
+
             error = None
             category = location.computed_storage_category_id
             allow_new_product = category.get_allow_new_product(
@@ -58,7 +94,7 @@ class StockQuant(models.Model):
                 quants=quant,
             )
             # Check content constraints
-            if allow_new_product == "empty" and other_quants_in_location:
+            if allow_new_product == "empty" and other_non_picked_quants_in_location:
                 error = _(
                     "Storage Category {category} is flagged "
                     "'only empty' with other quants in location."
