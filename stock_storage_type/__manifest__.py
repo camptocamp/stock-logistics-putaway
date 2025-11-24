@@ -4,7 +4,7 @@
 {
     "name": "Stock Storage Type",
     "summary": "Manage packages and locations storage types",
-    "version": "18.0.1.5.0",
+    "version": "18.0.1.5.1",
     "development_status": "Beta",
     "category": "Warehouse Management",
     "website": "https://github.com/OCA/stock-logistics-putaway",
@@ -17,6 +17,7 @@
         # OCA/stock-logistics-tracking
         "stock_quant_package_dimension",
         # OCA/stock-logistics-warehouse
+        "stock_location_fill_state",
         "stock_storage_category_capacity_name",
         "stock_location_pending_move",
         # OCA/stock-logistics-workflow
