@@ -32,6 +32,10 @@ class StockMoveLine(models.Model):
         self.ensure_one()
         return self.picking_id._can_recompute_putaway() and not self.picked
 
+    def _can_recompute_putaway_unsafe(self):
+        self.ensure_one()
+        return self.picking_id._can_recompute_putaway()
+
     def _filtered_for_putaway_recompute(self) -> Self:
         """
         Recompute putaways on operations that:
@@ -40,6 +44,8 @@ class StockMoveLine(models.Model):
             - have their picking not printed (started)
             - have their picked field set
         """
+        if self.env.context.get("allow_unsafe_putaway_recompute"):
+            return self.filtered(lambda line: line._can_recompute_putaway_unsafe())
         return self.filtered(lambda line: line._can_recompute_putaway())
 
     def _check_all_lines_with_same_dest_package(self):
@@ -69,9 +75,7 @@ class StockMoveLine(models.Model):
         Launches the computation of putaways on operations that are
         allowed to.
         """
-        to_recompute_lines = self.filtered(
-            lambda line: line.picking_id.picking_type_id.allow_to_recompute_putaways
-        )
+        to_recompute_lines = self._filtered_for_putaway_recompute()
         to_recompute_lines._check_all_lines_with_same_dest_package()
         # Reset location destinations to their move destination
         # First, protect the field from recomputations as
@@ -82,5 +86,4 @@ class StockMoveLine(models.Model):
         to_recompute_lines._apply_putaway_strategy()
 
     def action_recompute_putaways(self):
-        to_recompute_lines = self._filtered_for_putaway_recompute()
-        to_recompute_lines._recompute_putaways()
+        self._recompute_putaways()
